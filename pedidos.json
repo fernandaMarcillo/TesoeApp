@@ -31,5 +31,16 @@
         "metodo": "Tarjeta de Crédito / Débito",
         "status": "⏳ En Cola",
         "comprobante_path": null
+    },
+    {
+        "id": 5909,
+        "usuario": "user",
+        "productos": [
+            "Mocaccino (x1)"
+        ],
+        "total": 3.0,
+        "metodo": "Transferencia Bancaria",
+        "status": "⏳ En Cola",
+        "comprobante_path": null
     }
 ]
