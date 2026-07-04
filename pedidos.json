@@ -1,0 +1,35 @@
+[
+    {
+        "id": 7711,
+        "usuario": "user",
+        "productos": [
+            "Frappuccino Caramelo (x3)"
+        ],
+        "total": 10.5,
+        "metodo": "Efectivo en Caja",
+        "status": "⏳ En Cola",
+        "comprobante_path": null
+    },
+    {
+        "id": 8212,
+        "usuario": "user",
+        "productos": [
+            "Frappuccino Caramelo (x1)"
+        ],
+        "total": 3.5,
+        "metodo": "Efectivo en Caja",
+        "status": "⏳ En Cola",
+        "comprobante_path": null
+    },
+    {
+        "id": 5638,
+        "usuario": "user",
+        "productos": [
+            "Mocaccino (x1)"
+        ],
+        "total": 3.0,
+        "metodo": "Tarjeta de Crédito / Débito",
+        "status": "⏳ En Cola",
+        "comprobante_path": null
+    }
+]

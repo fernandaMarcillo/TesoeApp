@@ -7,10 +7,9 @@ from cart.cart_logic import CartScreen, OrderSummaryScreen
 from admin.admin_logic import AdminPanelScreen
 
 def aplicar_estilos_pastel():
-    # Sincronizado exactamente con el color base crema de los canvas de la app (evita parpadeos)
+    # Establecer un color de fondo pastel para toda la aplicación
     Window.clearcolor = (0.98, 0.96, 0.95, 1)
     
-    # Forzar tamaño de pantalla móvil estándar para pruebas de simulación interactiva
     Window.size = (360, 640)  
 
 def build_screen_manager():

@@ -7,49 +7,63 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.label import Label
 from kivy.uix.button import Button
 from kivy.uix.textinput import TextInput
-from kivy.uix.image import AsyncImage
+from kivy.uix.image import AsyncImage, Image
 from kivy.uix.progressbar import ProgressBar
 from kivy.graphics import Color, Rectangle, RoundedRectangle
 from kivy.clock import Clock
 from kivy.animation import Animation
 
+# Intentar importar plyer para abrir la galería nativa
+try:
+    from plyer import filechooser
+except ImportError:
+    filechooser = None
+
 # Estado global de sesión del usuario actual
-CURRENT_USER = {"username": "", "role": "client"}
+CURRENT_USER = {
+    "username": "usuario", 
+    "role": "client",
+    "name": "Jnombre y apellido",
+    "email": "juan@example.com",
+    "phone": "+000000000",
+    "profile_pic": "https://cdn-icons-png.flaticon.com/512/3135/3135715.png", 
+    "is_local_pic": False
+}
 
 # --- COMPONENTES MÓVILES PREMIUM ---
 
 class ModernTextInput(BoxLayout):
-    """Contenedor que dibuja una tarjeta blanca redondeada con sombra y un TextInput limpio adentro"""
-    def __init__(self, hint_text="", password=False, **kwargs):
+    def __init__(self, hint_text="", password=False, text="", **kwargs):
         super().__init__(**kwargs)
         self.orientation = 'vertical'
-        self.padding = (15, 6, 15, 6)
+        self.padding = (18, 6, 18, 6)
         self.size_hint_y = None
-        self.height = 55
+        self.height = 58
         
         with self.canvas.before:
-            # Sombra sutil
-            Color(0.85, 0.82, 0.8, 0.5) 
-            self.shadow = RoundedRectangle(pos=(self.x, self.y - 3), size=self.size, radius=[14])
-            # Fondo blanco puro
+            # Sombra suave sutil
+            Color(0.85, 0.82, 0.8, 0.3) 
+            self.shadow = RoundedRectangle(pos=(self.x, self.y - 3), size=self.size, radius=[16])
+            # Fondo blanco impecable
             Color(1, 1, 1, 1)  
-            self.rect = RoundedRectangle(pos=self.pos, size=self.size, radius=[14])
+            self.rect = RoundedRectangle(pos=self.pos, size=self.size, radius=[16])
             
         self.bind(pos=self.update_rect, size=self.update_rect)
         
         self.input = TextInput(
+            text=text,
             hint_text=hint_text,
             password=password,
             multiline=False,
             background_normal='',
             background_active='',
-            background_color=(0, 0, 0, 0),  # Transparente para usar el RoundedRectangle
+            background_color=(0, 0, 0, 0),
             foreground_color=(0.2, 0.2, 0.2, 1),
-            hint_text_color=(0.6, 0.6, 0.6, 1),
-            cursor_color=(0.3, 0.15, 0.05, 1),
+            hint_text_color=(0.65, 0.65, 0.65, 1),
+            cursor_color=(0.35, 0.2, 0.1, 1),
             font_name="Roboto",
-            font_size=16,
-            padding=(0, 10, 0, 10) # Centrado vertical mejorado
+            font_size=15,
+            padding=(0, 12, 0, 12)
         )
         self.add_widget(self.input)
 
@@ -63,6 +77,10 @@ class ModernTextInput(BoxLayout):
     def text(self):
         return self.input.text
 
+    @text.setter
+    def text(self, val):
+        self.input.text = val
+
 
 class ModernButton(Button):
     """Botón con esquinas suavizadas, sombras y feedback de presión"""
@@ -73,17 +91,15 @@ class ModernButton(Button):
         self.background_color = (0, 0, 0, 0)
         self.color = text_color
         self.bold = True
-        self.font_size = 16
+        self.font_size = 15
         self.font_name = "Roboto"
         self.custom_bg = bg_color
         
         with self.canvas.before:
-            # Sombra del botón
-            Color(0.8, 0.75, 0.75, 0.5)
-            self.shadow = RoundedRectangle(pos=(self.x, self.y - 4), size=self.size, radius=[14])
-            # Fondo del botón
+            Color(0.8, 0.75, 0.75, 0.4)
+            self.shadow = RoundedRectangle(pos=(self.x, self.y - 4), size=self.size, radius=[16])
             self.bg_color_inst = Color(*self.custom_bg)
-            self.rect = RoundedRectangle(pos=self.pos, size=self.size, radius=[14])
+            self.rect = RoundedRectangle(pos=self.pos, size=self.size, radius=[16])
             
         self.bind(pos=self.update_rect, size=self.update_rect)
         self.bind(state=self.on_state_change)
@@ -95,23 +111,39 @@ class ModernButton(Button):
         self.shadow.size = self.size
 
     def on_state_change(self, instance, value):
-        # Animación visual al presionar (reduce ligeramente la opacidad)
         if value == 'down':
-            self.bg_color_inst.a = 0.8
-            self.shadow.pos = (self.x, self.y - 1) # Efecto de hundimiento
+            self.bg_color_inst.a = 0.85
+            self.shadow.pos = (self.x, self.y - 1)
         else:
             self.bg_color_inst.a = 1.0
             self.shadow.pos = (self.x, self.y - 4)
 
 
-# --- PANTALLAS ---
+# --- NUEVA PANTALLA TEMPORAL PARA EVITAR CAÍDAS ---
+class ClientOrdersScreen(Screen):
+    """Pantalla de respaldo para que la app no se cierre al presionar 'Mis Pedidos'"""
+    def on_enter(self):
+        self.clear_widgets()
+        with self.canvas.before:
+            Color(0.99, 0.97, 0.95, 1)
+            self.rect_bg = Rectangle(pos=self.pos, size=self.size)
+            
+        layout = BoxLayout(orientation='vertical', padding=30, spacing=20)
+        layout.add_widget(Label(text="Mis Pedidos", font_size=28, bold=True, color=(0.35, 0.2, 0.1, 1), size_hint_y=0.2))
+        layout.add_widget(Label(text="Aquí aparecerá el historial de tus pedidos pronto.", color=(0.5, 0.5, 0.5, 1), halign="center"))
+        
+        btn_back = ModernButton(text="Volver al Perfil", bg_color=(0.45, 0.3, 0.2, 1), size_hint_y=None, height=50)
+        btn_back.bind(on_press=lambda x: setattr(self.manager, 'current', 'profile'))
+        layout.add_widget(btn_back)
+        self.add_widget(layout)
+
+
+# --- PANTALLAS PREVIAS REDISEÑADAS ---
 
 class SplashScreen(Screen):
     def on_enter(self):
         self.clear_widgets()
-        
         with self.canvas.before:
-            # Fondo crema cálido
             Color(0.99, 0.97, 0.95, 1)
             self.rect_bg = Rectangle(pos=self.pos, size=self.size)
         self.bind(pos=self.update_bg, size=self.update_bg)
@@ -119,41 +151,25 @@ class SplashScreen(Screen):
         from kivy.uix.floatlayout import FloatLayout
         layout = FloatLayout()
         
-        # Logotipo vectorial
         self.logo_galleta = AsyncImage(
             source="https://cdn-icons-png.flaticon.com/512/541/541732.png", 
-            size_hint=(None, None),
-            size=(140, 140),
-            pos_hint={'center_x': 0.5, 'center_y': 0.6}
+            size_hint=(None, None), size=(140, 140), pos_hint={'center_x': 0.5, 'center_y': 0.6}
         )
         layout.add_widget(self.logo_galleta)
         
-        # Animación de flotación más suave
         anim_movimiento = Animation(pos_hint={'center_y': 0.63}, duration=1.5, t='in_out_sine') + \
                           Animation(pos_hint={'center_y': 0.57}, duration=1.5, t='in_out_sine')
         anim_movimiento.repeat = True
         anim_movimiento.start(self.logo_galleta)
         
         lbl_title = Label(
-            text="Tesoe Pop", 
-            font_size=38, 
-            bold=True, 
-            color=(0.35, 0.2, 0.1, 1),  # Chocolate oscuro
-            font_name="Roboto",
-            size_hint=(None, None),
-            pos_hint={'center_x': 0.5, 'center_y': 0.35}
+            text="Tesoe Pop", font_size=38, bold=True, color=(0.35, 0.2, 0.1, 1),
+            font_name="Roboto", size_hint=(None, None), pos_hint={'center_x': 0.5, 'center_y': 0.35}
         )
         layout.add_widget(lbl_title)
         
-        self.progress = ProgressBar(
-            max=100, 
-            value=0, 
-            size_hint=(0.6, None), 
-            height=15,
-            pos_hint={'center_x': 0.5, 'center_y': 0.22}
-        )
+        self.progress = ProgressBar(max=100, value=0, size_hint=(0.6, None), height=15, pos_hint={'center_x': 0.5, 'center_y': 0.22})
         layout.add_widget(self.progress)
-        
         self.add_widget(layout)
         
         self.progreso_actual = 0
@@ -173,53 +189,47 @@ class SplashScreen(Screen):
 
 
 class LoginScreen(Screen):
+    """Pantalla de Login optimizada con un diseño de tarjeta flotante y limpio"""
     def on_enter(self):
         self.clear_widgets()
-        
         with self.canvas.before:
-            Color(0.99, 0.97, 0.95, 1)
+            Color(0.99, 0.97, 0.95, 1)  # Fondo pastel cálido general
             self.rect_bg = Rectangle(pos=self.pos, size=self.size)
         self.bind(pos=self.update_bg, size=self.update_bg)
         
-        # Ajuste de espaciado para mejor respiración visual
-        layout = BoxLayout(orientation='vertical', padding=[35, 50, 35, 40], spacing=20)
+        # Layout principal centrado y estético
+        layout = BoxLayout(orientation='vertical', padding=[30, 40, 30, 30], spacing=15)
         
-        layout.add_widget(Label(
-            text="¡Bienvenido a\nTesoe Pop!", 
-            font_size=30, 
-            bold=True, 
-            halign="center",
-            color=(0.35, 0.2, 0.1, 1), 
-            font_name="Roboto", 
-            size_hint_y=0.25
-        ))
+        # Encabezado con branding moderno
+        header = BoxLayout(orientation='vertical', size_hint_y=0.25, spacing=5)
+        header.add_widget(Label(text="¡Bienvenido de nuevo!", font_size=26, bold=True, color=(0.35, 0.2, 0.1, 1), font_name="Roboto"))
+        header.add_widget(Label(text="Ingresa a tu cuenta de Tesoe Pop", font_size=14, color=(0.6, 0.55, 0.5, 1), font_name="Roboto"))
+        layout.add_widget(header)
         
+        # Formulario
         self.username_input = ModernTextInput(hint_text="Nombre de Usuario")
         self.password_input = ModernTextInput(hint_text="Contraseña", password=True)
-        
         layout.add_widget(self.username_input)
         layout.add_widget(self.password_input)
         
-        self.error_label = Label(text="", color=(0.9, 0.3, 0.3, 1), font_size=14, bold=True, font_name="Roboto", size_hint_y=0.05)
+        self.error_label = Label(text="", color=(0.9, 0.35, 0.35, 1), font_size=14, bold=True, font_name="Roboto", size_hint_y=0.05)
         layout.add_widget(self.error_label)
         
-        btn_login = ModernButton(text="Iniciar Sesión", bg_color=(0.92, 0.45, 0.55, 1), size_hint_y=None, height=55)
+        # Botones estandarizados con mejores proporciones
+        btn_login = ModernButton(text="Iniciar Sesión", bg_color=(0.92, 0.45, 0.55, 1), size_hint_y=None, height=54)
         btn_login.bind(on_press=self.verify_login)
         
-        btn_go_register = ModernButton(text="¿No tienes cuenta? Regístrate", bg_color=(0.85, 0.78, 0.73, 1), text_color=(0.3, 0.15, 0.05, 1), size_hint_y=None, height=55)
+        btn_go_register = ModernButton(text="¿No tienes cuenta? Regístrate", bg_color=(0.88, 0.84, 0.8, 1), text_color=(0.35, 0.2, 0.1, 1), size_hint_y=None, height=54)
         btn_go_register.bind(on_press=lambda x: setattr(self.manager, 'current', 'register'))
         
         layout.add_widget(btn_login)
         layout.add_widget(btn_go_register)
-        layout.add_widget(Label(size_hint_y=0.15))
-        
+        layout.add_widget(Label(size_hint_y=0.1))
         self.add_widget(layout)
 
     def verify_login(self, instance):
         user = self.username_input.text.strip()
         password = self.password_input.text.strip()
-        
-        # CREDENCIALES ADMINISTRADOR
         if user == "admin" and password == "1234":
             CURRENT_USER["username"] = "admin"
             CURRENT_USER["role"] = "admin"
@@ -227,9 +237,9 @@ class LoginScreen(Screen):
         elif user != "" and password != "":
             CURRENT_USER["username"] = user
             CURRENT_USER["role"] = "client"
-            self.manager.current = 'catalog'
+            self.manager.current = 'profile' # Redirigido directamente a perfil para pruebas visuales rápidas
         else:
-            self.error_label.text = "Campos incompletos. Intente de nuevo."
+            self.error_label.text = "Por favor, completa todos los campos."
 
     def update_bg(self, instance, value):
         self.rect_bg.pos = self.pos
@@ -237,25 +247,22 @@ class LoginScreen(Screen):
 
 
 class RegisterScreen(Screen):
+    """Pantalla de Registro estilizada con espaciado balanceado de tarjeta"""
     def on_enter(self):
         self.clear_widgets()
-        
         with self.canvas.before:
             Color(0.99, 0.97, 0.95, 1)
             self.rect_bg = Rectangle(pos=self.pos, size=self.size)
         self.bind(pos=self.update_bg, size=self.update_bg)
         
-        layout = BoxLayout(orientation='vertical', padding=[35, 40, 35, 30], spacing=15)
+        layout = BoxLayout(orientation='vertical', padding=[30, 35, 30, 25], spacing=12)
         
-        layout.add_widget(Label(
-            text="Crear Cuenta", 
-            font_size=28, 
-            bold=True, 
-            color=(0.35, 0.2, 0.1, 1), 
-            font_name="Roboto", 
-            size_hint_y=0.15
-        ))
+        header = BoxLayout(orientation='vertical', size_hint_y=0.15, spacing=3)
+        header.add_widget(Label(text="Crear Cuenta", font_size=26, bold=True, color=(0.35, 0.2, 0.1, 1), font_name="Roboto"))
+        header.add_widget(Label(text="Únete y disfruta de los mejores postres", font_size=13, color=(0.6, 0.55, 0.5, 1), font_name="Roboto"))
+        layout.add_widget(header)
         
+        # Campos compactos y simétricos
         self.name_in = ModernTextInput(hint_text="Nombre Completo")
         self.email_in = ModernTextInput(hint_text="Correo Electrónico")
         self.phone_in = ModernTextInput(hint_text="Teléfono Celular")
@@ -268,33 +275,37 @@ class RegisterScreen(Screen):
         layout.add_widget(self.user_in)
         layout.add_widget(self.pass_in)
         
-        # Espacio extra antes de los botones
-        layout.add_widget(Label(size_hint_y=0.05))
+        layout.add_widget(Label(size_hint_y=0.02))
         
-        btn_create = ModernButton(text="Crear Cuenta", bg_color=(0.4, 0.65, 0.5, 1), size_hint_y=None, height=55)
+        btn_create = ModernButton(text="Registrarme", bg_color=(0.4, 0.65, 0.5, 1), size_hint_y=None, height=52)
         btn_create.bind(on_press=self.register_user)
         
-        btn_back = ModernButton(text="Volver al Login", bg_color=(0.7, 0.65, 0.65, 1), size_hint_y=None, height=50)
+        btn_back = ModernButton(text="Volver al Login", bg_color=(0.75, 0.7, 0.7, 1), size_hint_y=None, height=50)
         btn_back.bind(on_press=lambda x: setattr(self.manager, 'current', 'login'))
         
         layout.add_widget(btn_create)
         layout.add_widget(btn_back)
-        
         self.add_widget(layout)
 
     def register_user(self, instance):
         if self.user_in.text.strip():
             CURRENT_USER["username"] = self.user_in.text.strip()
+            CURRENT_USER["name"] = self.name_in.text.strip() if self.name_in.text.strip() else CURRENT_USER["name"]
+            CURRENT_USER["email"] = self.email_in.text.strip() if self.email_in.text.strip() else CURRENT_USER["email"]
+            CURRENT_USER["phone"] = self.phone_in.text.strip() if self.phone_in.text.strip() else CURRENT_USER["phone"]
             CURRENT_USER["role"] = "client"
-            self.manager.current = 'catalog'
+            self.manager.current = 'profile'
 
     def update_bg(self, instance, value):
         self.rect_bg.pos = self.pos
         self.rect_bg.size = self.size
 
 
+# --- PANTALLA DE PERFIL REDISEÑADA Y INTERACTIVA ---
+
 class ProfileScreen(Screen):
     def on_enter(self):
+        self.is_editing = False  # Estado inicial: Solo lectura
         self.update_profile()
 
     def update_profile(self):
@@ -305,40 +316,129 @@ class ProfileScreen(Screen):
             self.rect_bg = Rectangle(pos=self.pos, size=self.size)
         self.bind(pos=self.update_bg, size=self.update_bg)
         
-        layout = BoxLayout(orientation='vertical', padding=[35, 40, 35, 40], spacing=20)
+        layout = BoxLayout(orientation='vertical', padding=[24, 24, 24, 20], spacing=12)
         
-        layout.add_widget(Label(text="Mi Perfil", font_size=28, bold=True, color=(0.35, 0.2, 0.1, 1), font_name="Roboto", size_hint_y=0.15))
+        # --- HEADER Y FOTO ---
+        header_box = BoxLayout(orientation='vertical', size_hint_y=None, height=125, spacing=6)
         
-        # Tarjeta de perfil más estilizada
-        data_box = BoxLayout(orientation='vertical', padding=25, spacing=10, size_hint_y=0.3)
-        with data_box.canvas.before:
-            Color(0.85, 0.82, 0.8, 0.4) 
-            self.card_shadow = RoundedRectangle(pos=(data_box.x, data_box.y - 4), size=data_box.size, radius=[16])
-            Color(1, 1, 1, 1)
-            self.card_rect = RoundedRectangle(pos=data_box.pos, size=data_box.size, radius=[16])
-        data_box.bind(pos=self.update_card, size=self.update_card)
+        if CURRENT_USER["is_local_pic"]:
+            self.profile_image = Image(source=CURRENT_USER["profile_pic"], size_hint=(None, None), size=(90, 90), pos_hint={'center_x': 0.5})
+        else:
+            self.profile_image = AsyncImage(source=CURRENT_USER["profile_pic"], size_hint=(None, None), size=(90, 90), pos_hint={'center_x': 0.5})
+            
+        header_box.add_widget(self.profile_image)
         
-        data_box.add_widget(Label(text=f"@{CURRENT_USER['username']}", font_size=22, color=(0.2, 0.2, 0.2, 1), font_name="Roboto", bold=True))
-        data_box.add_widget(Label(text=f"Tipo de cuenta: {CURRENT_USER['role'].capitalize()}", font_size=15, font_name="Roboto", color=(0.5, 0.5, 0.5, 1)))
-        layout.add_widget(data_box)
+        btn_change_pic = Button(
+            text="[b]Cambiar Foto desde Galería[/b]", markup=True, size_hint=(None, None), size=(180, 25),
+            pos_hint={'center_x': 0.5}, background_normal='', background_color=(0, 0, 0, 0),
+            color=(0.92, 0.45, 0.55, 1), font_size=12, font_name="Roboto"
+        )
+        btn_change_pic.bind(on_press=self.open_gallery)
+        header_box.add_widget(btn_change_pic)
+        layout.add_widget(header_box)
         
-        layout.add_widget(Label(size_hint_y=0.05)) # Espaciador
+        # --- SECCIÓN AJUSTES ---
+        layout.add_widget(Label(text="Ajustes de la Aplicación", font_size=15, bold=True, color=(0.35, 0.2, 0.1, 1), font_name="Roboto", size_hint_y=None, height=22))
         
-        btn_orders = ModernButton(text="Ver Mis Pedidos", bg_color=(0.92, 0.45, 0.55, 1), size_hint_y=None, height=55)
-        btn_orders.bind(on_press=lambda x: setattr(self.manager, 'current', 'client_orders'))
+        self.edit_name = ModernTextInput(hint_text="Nombre Completo", text=CURRENT_USER["name"])
+        self.edit_email = ModernTextInput(hint_text="Correo Electrónico", text=CURRENT_USER["email"])
+        self.edit_phone = ModernTextInput(hint_text="Teléfono Celular", text=CURRENT_USER["phone"])
         
-        btn_catalog = ModernButton(text="Ir al Catálogo", bg_color=(0.45, 0.3, 0.2, 1), size_hint_y=None, height=55)
+        # Bloquear inputs inicialmente
+        self.edit_name.input.disabled = True
+        self.edit_email.input.disabled = True
+        self.edit_phone.input.disabled = True
+        
+        layout.add_widget(self.edit_name)
+        layout.add_widget(self.edit_email)
+        layout.add_widget(self.edit_phone)
+        
+        self.info_lbl = Label(text="", color=(0.4, 0.65, 0.5, 1), font_size=13, bold=True, size_hint_y=None, height=18)
+        layout.add_widget(self.info_lbl)
+        
+        # --- BOTÓN INTERACTIVO: EDICIÓN / GUARDADO ---
+        self.btn_action = ModernButton(text="Editar Datos", bg_color=(0.35, 0.45, 0.6, 1), size_hint_y=None, height=48)
+        self.btn_action.bind(on_press=self.toggle_edit_state)
+        layout.add_widget(self.btn_action)
+        
+        # Navegación corregida para evitar el cierre forzado usando la nueva pantalla añadida
+        nav_box = BoxLayout(orientation='horizontal', spacing=10, size_hint_y=None, height=46)
+        btn_orders = ModernButton(text="Mis Pedidos", bg_color=(0.92, 0.45, 0.55, 1))
+        btn_orders.bind(on_press=lambda x: setattr(self.manager, 'current', 'client_orders')) # Ahora apunta seguro
+        btn_catalog = ModernButton(text="Catálogo", bg_color=(0.45, 0.3, 0.2, 1))
         btn_catalog.bind(on_press=lambda x: setattr(self.manager, 'current', 'catalog'))
+        nav_box.add_widget(btn_orders)
+        nav_box.add_widget(btn_catalog)
+        layout.add_widget(nav_box)
         
-        btn_logout = ModernButton(text="Cerrar Sesión", bg_color=(0.85, 0.35, 0.35, 1), size_hint_y=None, height=50)
+        # --- REDES SOCIALES ---
+        layout.add_widget(Label(text="Síguenos en nuestras Redes", font_size=13, color=(0.6, 0.5, 0.4, 1), font_name="Roboto", size_hint_y=None, height=18))
+        
+        social_box = BoxLayout(orientation='horizontal', spacing=10, size_hint_y=None, height=44)
+        btn_fb = ModernButton(text="Facebook", bg_color=(0.23, 0.35, 0.6, 1))
+        btn_fb.bind(on_press=lambda x: self.open_social_link("Facebook"))
+        btn_ig = ModernButton(text="Instagram", bg_color=(0.88, 0.26, 0.43, 1))
+        btn_ig.bind(on_press=lambda x: self.open_social_link("Instagram"))
+        btn_maps = ModernButton(text="Google Maps", bg_color=(0.2, 0.65, 0.35, 1))
+        btn_maps.bind(on_press=lambda x: self.open_social_link("Google Maps"))
+        
+        social_box.add_widget(btn_fb)
+        social_box.add_widget(btn_ig)
+        social_box.add_widget(btn_maps)
+        layout.add_widget(social_box)
+        
+        # Logout
+        btn_logout = ModernButton(text="Cerrar Sesión", bg_color=(0.85, 0.35, 0.35, 1), size_hint_y=None, height=42)
         btn_logout.bind(on_press=self.logout)
-        
-        layout.add_widget(btn_orders)
-        layout.add_widget(btn_catalog)
         layout.add_widget(btn_logout)
-        layout.add_widget(Label(size_hint_y=0.1))
         
         self.add_widget(layout)
+
+    def toggle_edit_state(self, instance):
+        if not self.is_editing:
+            # Activar Modo Edición
+            self.is_editing = True
+            self.edit_name.input.disabled = False
+            self.edit_email.input.disabled = False
+            self.edit_phone.input.disabled = False
+            self.btn_action.text = "Guardar Cambios"
+            self.btn_action.bg_color_inst.rgba = (0.4, 0.65, 0.5, 1) # Verde exitoso al editar
+            self.info_lbl.text = "Modo edición activado. Modifique sus datos."
+        else:
+            # Guardar y Salir del Modo Edición
+            CURRENT_USER["name"] = self.edit_name.text.strip()
+            CURRENT_USER["email"] = self.edit_email.text.strip()
+            CURRENT_USER["phone"] = self.edit_phone.text.strip()
+            
+            self.is_editing = False
+            self.edit_name.input.disabled = True
+            self.edit_email.input.disabled = True
+            self.edit_phone.input.disabled = True
+            self.btn_action.text = "Editar Datos"
+            self.btn_action.bg_color_inst.rgba = (0.35, 0.45, 0.6, 1) # Retorna a azul elegante
+            
+            self.info_lbl.text = "¡Ajustes guardados correctamente!"
+            Clock.schedule_once(self.clear_info_lbl, 2)
+
+    def open_gallery(self, instance):
+        if filechooser:
+            filechooser.open_file(on_selection=self.handle_selection, filters=[("Imágenes", "*.png", "*.jpg", "*.jpeg")])
+        else:
+            self.info_lbl.text = "Instale 'plyer' para acceder a la galería."
+
+    def handle_selection(self, selection):
+        if selection and len(selection) > 0:
+            CURRENT_USER["profile_pic"] = selection[0]
+            CURRENT_USER["is_local_pic"] = True
+            self.profile_image.source = CURRENT_USER["profile_pic"]
+            self.profile_image.reload()
+
+    def open_social_link(self, platform):
+        self.info_lbl.text = f"Redirigiendo al {platform} de Tesoe Pop..."
+        Clock.schedule_once(self.clear_info_lbl, 2)
+
+    def clear_info_lbl(self, dt):
+        self.info_lbl.text = ""
 
     def logout(self, instance):
         CURRENT_USER["username"] = ""
@@ -348,10 +448,3 @@ class ProfileScreen(Screen):
     def update_bg(self, instance, value):
         self.rect_bg.pos = self.pos
         self.rect_bg.size = self.size
-
-    def update_card(self, instance, value):
-        if hasattr(self, 'card_rect'):
-            self.card_rect.pos = instance.pos
-            self.card_rect.size = instance.size
-            self.card_shadow.pos = (instance.x, instance.y - 4)
-            self.card_shadow.size = instance.size

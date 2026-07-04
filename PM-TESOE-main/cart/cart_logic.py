@@ -1,5 +1,6 @@
 import ssl
 import os
+import json
 ssl._create_default_https_context = ssl._create_unverified_context
 
 from kivy.uix.screenmanager import Screen
@@ -9,13 +10,33 @@ from kivy.uix.label import Label
 from kivy.uix.button import Button
 from kivy.uix.spinner import Spinner
 from kivy.uix.image import AsyncImage
-from kivy.uix.popup import Popup
-from kivy.uix.filechooser import FileChooserIconView
 from kivy.graphics import Color, Rectangle, RoundedRectangle
 import random
 
+# Importamos Plyer para abrir la galería nativa del teléfono
+from plyer import filechooser
+
+# --- PERSISTENCIA DE DATOS REAL ---
+PEDIDOS_FILE = "pedidos.json"
+
+def cargar_pedidos_locales():
+    if os.path.exists(PEDIDOS_FILE):
+        try:
+            with open(PEDIDOS_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return []
+    return []
+
+def guardar_pedidos_locales():
+    try:
+        with open(PEDIDOS_FILE, "w", encoding="utf-8") as f:
+            json.dump(ORDERS_PREPARED, f, ensure_ascii=False, indent=4)
+    except Exception as e:
+        print(f"Error al guardar pedidos: {e}")
+
 CART_ITEMS = []
-ORDERS_PREPARED = []
+ORDERS_PREPARED = cargar_pedidos_locales()
 ULTIMO_PEDIDO = {}
 
 # --- COMPONENTES MODERNOS CON ICONOS REALES ---
@@ -143,7 +164,7 @@ class CartScreen(Screen):
             item_box = CardRow(orientation='horizontal', size_hint_y=None, height=60, spacing=8, padding=(12, 5, 0, 5))
             
             item_box.add_widget(Label(
-                text=f"{item['name']}", size_hint_x=0.4, font_name="Roboto",
+                text=f"{item['name']}", size_hint_x=0.35, font_name="Roboto",
                 color=(0.25, 0.2, 0.2, 1), font_size=15, halign="left", bold=True
             ))
             item_box.add_widget(Label(
@@ -151,14 +172,21 @@ class CartScreen(Screen):
                 color=(0.4, 0.2, 0.1, 1), font_size=14
             ))
             
-            qty_layout = BoxLayout(size_hint_x=0.32, spacing=6, padding=(0, 6, 0, 6))
-            btn_minus = CartButton(text="-", bg_color=(0.85, 0.6, 0.6, 1), radius=[8])
-            btn_minus.bind(on_press=lambda inst, i=idx: self.modify_qty(i, -1))
+            qty_layout = BoxLayout(size_hint_x=0.35, spacing=4, padding=(0, 4, 0, 4))
             
-            lbl_qty = Label(text=str(item['qty']), color=(0.3, 0.15, 0.05, 1), font_name="Roboto", bold=True, font_size=15)
+            btn_minus = IconButton(
+                icon_url="https://cdn-icons-png.flaticon.com/512/43/43625.png",
+                bg_color=(0.85, 0.6, 0.6, 1), radius=[8],
+                on_press_callback=lambda inst, i=idx: self.modify_qty(i, -1)
+            )
             
-            btn_plus = CartButton(text="+", bg_color=(0.6, 0.8, 0.6, 1), radius=[8])
-            btn_plus.bind(on_press=lambda inst, i=idx: self.modify_qty(i, 1))
+            lbl_qty = Label(text=str(item['qty']), color=(0.3, 0.15, 0.05, 1), font_name="Roboto", bold=True, font_size=15, size_hint_x=0.3)
+            
+            btn_plus = IconButton(
+                icon_url="https://cdn-icons-png.flaticon.com/512/748/748113.png",
+                bg_color=(0.6, 0.8, 0.6, 1), radius=[8],
+                on_press_callback=lambda inst, i=idx: self.modify_qty(i, 1)
+            )
             
             qty_layout.add_widget(btn_minus)
             qty_layout.add_widget(lbl_qty)
@@ -246,10 +274,12 @@ class CartScreen(Screen):
                 "total": total,
                 "metodo": self.spinner_pago.text,
                 "status": "⏳ En Cola",
-                "comprobante_path": None  # Campo para guardar la ruta del archivo real
+                "comprobante_path": None
             }
             ORDERS_PREPARED.append(pedido)
             ULTIMO_PEDIDO = pedido
+            
+            guardar_pedidos_locales()
             CART_ITEMS.clear()
             
             self.manager.get_screen('order_summary').on_enter()
@@ -292,17 +322,25 @@ class OrderSummaryScreen(Screen):
                 
             layout.add_widget(ticket_box)
 
-        # SECCIÓN DE SUBIDA DE COMPROBANTE REAL
+        # SECCIÓN DE SUBIDA DE COMPROBANTE NATIVO (Habilitada para todos los métodos de pago)
         upload_box = CardRow(orientation='vertical', padding=15, spacing=10, size_hint_y=0.3, bg_color=(0.92, 0.94, 0.96, 1))
+        
+        upload_btn_layout = BoxLayout(orientation='horizontal', size_hint_y=0.4, spacing=10)
+        
+        self.btn_upload = CartButton(text="Abrir Galería...", bg_color=(0.4, 0.5, 0.7, 1), radius=[8])
+        # Vinculamos al nuevo método compatible con teléfonos móviles
+        self.btn_upload.bind(on_press=self.open_file_chooser)
+        
+        camera_icon = AsyncImage(source="https://cdn-icons-png.flaticon.com/512/685/685655.png", size_hint_x=0.2)
+        
+        upload_btn_layout.add_widget(camera_icon)
+        upload_btn_layout.add_widget(self.btn_upload)
         
         upload_box.add_widget(Label(
             text="Adjunta una foto de tu comprobante o factura:", 
             color=(0.2, 0.3, 0.4, 1), font_size=13, font_name="Roboto", bold=True, size_hint_y=0.3
         ))
-        
-        self.btn_upload = CartButton(text="📸 Seleccionar Archivo...", bg_color=(0.4, 0.5, 0.7, 1), radius=[8], size_hint_y=0.4)
-        self.btn_upload.bind(on_press=self.open_file_chooser)
-        upload_box.add_widget(self.btn_upload)
+        upload_box.add_widget(upload_btn_layout)
         
         self.lbl_file_status = Label(
             text="Ningún archivo seleccionado", 
@@ -322,53 +360,33 @@ class OrderSummaryScreen(Screen):
         self.add_widget(layout)
 
     def open_file_chooser(self, instance):
-        """Abre un popup nativo de Kivy para explorar archivos reales"""
-        content = BoxLayout(orientation='vertical', spacing=10, padding=10)
-        
-        # Visor de archivos (filtrado por imágenes, aunque en Kivy de escritorio mostrará las carpetas)
-        self.file_chooser = FileChooserIconView(filters=['*.png', '*.jpg', '*.jpeg', '*.pdf'])
-        content.add_widget(self.file_chooser)
-        
-        btn_box = BoxLayout(size_hint_y=None, height=50, spacing=15)
-        
-        btn_cancel = CartButton(text="Cancelar", bg_color=(0.85, 0.4, 0.4, 1), radius=[8])
-        btn_select = CartButton(text="Cargar", bg_color=(0.35, 0.65, 0.45, 1), radius=[8])
-        
-        btn_box.add_widget(btn_cancel)
-        btn_box.add_widget(btn_select)
-        
-        content.add_widget(btn_box)
-        
-        self.popup = Popup(
-            title="Selecciona tu comprobante (PNG, JPG, PDF)",
-            content=content,
-            size_hint=(0.9, 0.9),
-            title_font="Roboto"
-        )
-        
-        btn_cancel.bind(on_press=self.popup.dismiss)
-        btn_select.bind(on_press=self.process_file_selection)
-        
-        self.popup.open()
+        """Llama a la Galería o Explorador de Archivos Nativo del Sistema Operativo móvil"""
+        try:
+            # plyer.filechooser abre la interfaz nativa de Android/iOS/Windows/Mac de forma transparente
+            filechooser.open_file(
+                title="Selecciona tu comprobante",
+                filters=[("Imágenes", "*.png", "*.jpg", "*.jpeg"), ("Documentos", "*.pdf")],
+                on_selection=self.process_file_selection
+            )
+        except Exception as e:
+            # En caso de error o falta de permisos, muestra el estado de falla en el Label
+            self.lbl_file_status.text = f"Error al abrir la galería: {str(e)}"
+            self.lbl_file_status.color = (0.8, 0.2, 0.2, 1)
 
-    def process_file_selection(self, instance):
-        """Procesa el archivo real que el usuario seleccionó de su dispositivo"""
-        selection = self.file_chooser.selection
+    def process_file_selection(self, selection):
+        """Procesa de manera asíncrona la respuesta del archivo seleccionado desde la galería"""
         if selection:
-            # Obtiene la ruta absoluta del archivo seleccionado
+            # Plyer devuelve una lista con las rutas de archivos elegidos
             file_path = selection[0]
             file_name = os.path.basename(file_path)
             
-            # Guardamos la ruta en el diccionario del pedido real
             if ULTIMO_PEDIDO:
                 ULTIMO_PEDIDO['comprobante_path'] = file_path
+                guardar_pedidos_locales()
             
-            # Actualizamos la interfaz
-            self.lbl_file_status.text = f"✅ Archivo cargado:\n{file_name}"
+            self.lbl_file_status.text = f"Archivo cargado exitosamente:\n{file_name}"
             self.lbl_file_status.color = (0.2, 0.6, 0.2, 1)
-            self.btn_upload.text = "📸 Cambiar Archivo"
-            
-        self.popup.dismiss()
+            self.btn_upload.text = "Cambiar Archivo"
 
     def update_bg(self, instance, value):
         self.rect_bg.pos = self.pos
